@@ -56,7 +56,7 @@ The application is a single Spring Boot monolith service. It connects to two ext
    Open a terminal in the project root and run:  
    docker compose up \-d
 
-   This will start PostgreSQL on port 5432 and Redis on port 6379\.
+   This will start PostgreSQL on port 15432 and Redis on port 16379\.
 2. Build the Application:  
    In the same terminal, build the project using the Gradle wrapper:  
    \# On macOS/Linux  
