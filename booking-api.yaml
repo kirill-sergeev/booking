@@ -1,0 +1,572 @@
+openapi: 3.1.0
+info:
+  title: Booking System API
+  description: REST API for a booking service. Allows managing and booking accommodation
+    units.
+  version: 1.0.0
+servers:
+- url: http://localhost:8080
+  description: Local Server
+tags:
+- name: Booking Management
+  description: "APIs for creating, paying, and canceling bookings"
+- name: Unit Management
+  description: APIs for managing and searching accommodation units
+- name: Statistics
+  description: APIs for application statistics
+paths:
+  /api/v1/units:
+    post:
+      tags:
+      - Unit Management
+      summary: Add a new accommodation unit
+      operationId: addUnit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnitCreateRequest"
+        required: true
+      responses:
+        "201":
+          description: Unit created successfully
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UnitDto"
+        "400":
+          description: Invalid input data
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UnitDto"
+  /api/v1/bookings:
+    post:
+      tags:
+      - Booking Management
+      summary: Create a new booking
+      description: Creates a booking in PENDING state. It must be paid within 15 minutes.
+      operationId: createBooking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingCreateRequest"
+        required: true
+      responses:
+        "201":
+          description: Booking created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+        "400":
+          description: Invalid data or dates
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+        "404":
+          description: Unit or User not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+        "409":
+          description: Unit is not available for these dates
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+  /api/v1/bookings/{bookingId}/pay:
+    post:
+      tags:
+      - Booking Management
+      summary: Emulate payment for a booking
+      description: Moves a PENDING booking to CONFIRMED state.
+      operationId: payForBooking
+      parameters:
+      - name: bookingId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: "Payment successful, booking confirmed"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentDto"
+        "404":
+          description: Booking not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentDto"
+        "409":
+          description: Booking is not pending or has expired
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentDto"
+  /api/v1/units/{id}:
+    get:
+      tags:
+      - Unit Management
+      summary: Get a unit by its ID
+      operationId: getUnitById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Unit found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UnitDto"
+        "404":
+          description: Unit not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UnitDto"
+  /api/v1/units/search:
+    get:
+      tags:
+      - Unit Management
+      summary: Search for available units
+      description: "Finds units based on criteria and availability. Supports sorting\
+        \ (e.g., sort=baseCost,asc) and pagination (e.g., page=0&size=10)."
+      operationId: searchUnits
+      parameters:
+      - name: numberOfRooms
+        in: query
+        description: Filter by exact number of rooms
+        required: false
+        schema:
+          type: integer
+          format: int32
+          description: Filter by exact number of rooms
+          example: 2
+          maximum: 1000
+          minimum: 1
+        example: 2
+      - name: accommodationType
+        in: query
+        description: Filter by accommodation type
+        required: false
+        schema:
+          type: string
+          description: Filter by accommodation type
+          enum:
+          - HOME
+          - FLAT
+          - APARTMENTS
+          example: FLAT
+        example: FLAT
+      - name: floor
+        in: query
+        description: Filter by exact floor number
+        required: false
+        schema:
+          type: integer
+          format: int32
+          description: Filter by exact floor number
+          example: 5
+          maximum: 1000
+          minimum: 0
+        example: 5
+      - name: minCost
+        in: query
+        description: Filter by minimum base cost
+        required: false
+        schema:
+          type: number
+          description: Filter by minimum base cost
+          example: 100.0
+          minimum: 0.01
+        example: 100.0
+      - name: maxCost
+        in: query
+        description: Filter by maximum base cost
+        required: false
+        schema:
+          type: number
+          description: Filter by maximum base cost
+          example: 200.0
+          minimum: 0.01
+        example: 200.0
+      - name: checkInDate
+        in: query
+        description: Desired check-in date
+        required: true
+        schema:
+          type: string
+          format: date
+          description: Desired check-in date
+          example: 2025-12-20
+        example: 2025-12-20
+      - name: checkOutDate
+        in: query
+        description: Desired check-out date
+        required: true
+        schema:
+          type: string
+          format: date
+          description: Desired check-out date
+          example: 2025-12-25
+        example: 2025-12-25
+      - name: page
+        in: query
+        description: Zero-based page index (0..N)
+        required: false
+        schema:
+          type: integer
+          default: 0
+          minimum: 0
+      - name: size
+        in: query
+        description: The size of the page to be returned
+        required: false
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+      - name: sort
+        in: query
+        description: "Sorting criteria in the format: property,(asc|desc). Default\
+          \ sort order is ascending. Multiple sort criteria are supported."
+        required: false
+        schema:
+          type: array
+          default:
+          - "baseCost,ASC"
+          items:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PagedResponseUnitDto"
+  /api/v1/statistics/available-units:
+    get:
+      tags:
+      - Statistics
+      summary: Get available unit count for a date range
+      description: Checks availability based on booked dates.
+      operationId: getAvailableUnitsCount
+      parameters:
+      - name: checkInDate
+        in: query
+        description: Check-in date
+        required: true
+        schema:
+          type: string
+          format: date
+          description: Check-in date
+          example: 2025-01-01
+        example: 2025-01-01
+      - name: checkOutDate
+        in: query
+        description: Check-out date
+        required: true
+        schema:
+          type: string
+          format: date
+          description: Check-out date
+          example: 2025-01-02
+        example: 2025-01-02
+      responses:
+        "200":
+          description: Availability calculated
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvailableUnitsResponse"
+        "400":
+          description: Invalid date range or missing parameters
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AvailableUnitsResponse"
+  /api/v1/bookings/{bookingId}:
+    get:
+      tags:
+      - Booking Management
+      summary: Get booking details by ID
+      operationId: getBookingById
+      parameters:
+      - name: bookingId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Booking found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+        "404":
+          description: Booking not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+    delete:
+      tags:
+      - Booking Management
+      summary: Cancel a booking
+      description: Cancels a PENDING or CONFIRMED booking.
+      operationId: cancelBooking
+      parameters:
+      - name: bookingId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+        "404":
+          description: Booking not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingDto"
+components:
+  schemas:
+    UnitCreateRequest:
+      type: object
+      description: Data required to create a new accommodation unit
+      properties:
+        numberOfRooms:
+          type: integer
+          format: int32
+          description: Number of rooms in the unit
+          example: 2
+          maximum: 1000
+          minimum: 1
+        accommodationType:
+          type: string
+          description: Type of accommodation
+          enum:
+          - HOME
+          - FLAT
+          - APARTMENTS
+          example: FLAT
+        floor:
+          type: integer
+          format: int32
+          description: Floor number of the unit
+          example: 5
+          maximum: 1000
+          minimum: 0
+        baseCost:
+          type: number
+          description: Base cost per night for the unit
+          example: 150.0
+          minimum: 0.01
+        description:
+          type: string
+          description: A general description of the unit
+          example: "Modern flat, fully equipped"
+      required:
+      - accommodationType
+      - baseCost
+      - floor
+      - numberOfRooms
+    UnitDto:
+      type: object
+      description: Detailed information about an accommodation unit
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the unit
+          example: 1
+        numberOfRooms:
+          type: integer
+          format: int32
+          description: Number of rooms in the unit
+          example: 2
+        accommodationType:
+          type: string
+          description: Type of accommodation
+          enum:
+          - HOME
+          - FLAT
+          - APARTMENTS
+          example: FLAT
+        floor:
+          type: integer
+          format: int32
+          description: Floor number of the unit
+          example: 5
+        totalCost:
+          type: number
+          description: Total cost per night for the unit
+          example: 150.0
+        description:
+          type: string
+          description: A general description of the unit
+          example: "Modern flat, fully equipped"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of unit creation
+    BookingCreateRequest:
+      type: object
+      description: Data required to create a new booking
+      properties:
+        unitId:
+          type: integer
+          format: int64
+          description: The ID of the unit to book
+          example: 1
+        userId:
+          type: integer
+          format: int64
+          description: The ID of the user making the booking
+          example: 1
+        checkInDate:
+          type: string
+          format: date
+          description: Desired check-in date
+          example: 2025-12-20
+        checkOutDate:
+          type: string
+          format: date
+          description: Desired check-out date
+          example: 2025-12-25
+      required:
+      - checkInDate
+      - checkOutDate
+      - unitId
+      - userId
+    BookingDto:
+      type: object
+      description: Detailed information about a booking
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the booking
+          example: 101
+        unitId:
+          type: integer
+          format: int64
+          description: ID of the booked unit
+          example: 1
+        userId:
+          type: integer
+          format: int64
+          description: ID of the user who booked
+          example: 1
+        checkInDate:
+          type: string
+          format: date
+          description: Check-in date
+          example: 2025-12-20
+        checkOutDate:
+          type: string
+          format: date
+          description: Check-out date
+          example: 2025-12-25
+        status:
+          type: string
+          description: Current status of the booking
+          enum:
+          - PENDING
+          - CONFIRMED
+          - CANCELLED
+          - EXPIRED
+          example: PENDING
+        totalCost:
+          type: number
+          description: Total cost including system markup
+          example: 172.5
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the booking was created
+        expiresAt:
+          type: string
+          format: date-time
+          description: Timestamp when the pending booking will expire if not paid
+    PaymentDto:
+      type: object
+      description: Information about a successful payment
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the payment
+          example: 501
+        bookingId:
+          type: integer
+          format: int64
+          description: ID of the associated booking
+          example: 101
+        status:
+          type: string
+          description: Payment status
+          example: SUCCESSFUL
+        amount:
+          type: number
+          description: Amount paid
+          example: 172.5
+        paidAt:
+          type: string
+          format: date-time
+          description: Timestamp of payment
+    PagedResponseUnitDto:
+      type: object
+      description: Paged response
+      properties:
+        content:
+          type: array
+          description: Paginated content
+          items:
+            $ref: "#/components/schemas/UnitDto"
+        page:
+          type: integer
+          format: int32
+          description: Zero-based page index
+          example: 0
+        hasNext:
+          type: boolean
+          description: Indicates if there are more results available
+          example: false
+        numberOfElements:
+          type: integer
+          format: int32
+          description: Number of elements in the response
+          example: 10
+    AvailableUnitsResponse:
+      type: object
+      description: Statistics on available units
+      properties:
+        availableUnitsCount:
+          type: integer
+          format: int32
+          description: Total number of units currently available for booking for the
+            specified dates
+          example: 95
+

@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: booking-postgres
+    environment:
+      POSTGRES_DB: bookingdb
+      POSTGRES_USER: booker
+      POSTGRES_PASSWORD: password
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U booker -d bookingdb" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: booking-redis
+    ports:
+      - "16379:6379"
+    # Enable AOF (Append Only File) persistence for durability
+    command: redis-server --requirepass password --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  redis-data:
